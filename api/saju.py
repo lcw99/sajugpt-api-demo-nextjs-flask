@@ -10,7 +10,7 @@ from flask import Flask, request, Response, jsonify
 app = Flask(__name__)
 
 # Retrieve the API key from environment variables (set this in your Vercel project settings)
-SAJU_API_KEY = os.environ.get("SAJU_API_KEY", "YOUR_FALLBACK_OR_TEST_KEY")
+SAJU_API_KEY = os.environ.get("SAJU_API_KEY", "key")
 
 @app.route('/api/saju', methods=['POST'])
 def get_saju_reading():
@@ -48,7 +48,7 @@ def get_saju_reading():
 
             user_data = {
                 "appVersion": 199, # As per your initial example
-                "userId": "skk-flask-nextjs-demo", # Or any other identifier
+                "userId": SAJU_API_KEY, # Or any other identifier
                 "birthday": birthday,
                 "gender": gender,
                 "today": today_date
