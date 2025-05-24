@@ -1,43 +1,44 @@
+# /api/saju.py
 import json
 from openai import OpenAI
 import os
-from http.server import BaseHTTPRequestHandler
-from urllib.parse import parse_qs
-import datetime # Required for 'today'
+import datetime
+from flask import Flask, request, Response, jsonify
 
-# It's good practice to get API keys from environment variables
-# You'll need to set this in your Vercel project settings
-SAJU_API_KEY = os.environ.get("SAJU_API_KEY", "key") # Fallback to "key" if not set
+# Initialize the Flask application
+# Vercel will look for an 'app' instance by default in the file.
+app = Flask(__name__)
 
-class handler(BaseHTTPRequestHandler):
+# Retrieve the API key from environment variables (set this in your Vercel project settings)
+SAJU_API_KEY = os.environ.get("SAJU_API_KEY", "YOUR_FALLBACK_OR_TEST_KEY")
 
-    def do_POST(self):
-        content_length = int(self.headers['Content-Length'])
-        post_data_bytes = self.rfile.read(content_length)
-        post_data_str = post_data_bytes.decode('utf-8')
-
+@app.route('/api/saju', methods=['POST'])
+def get_saju_reading():
+    if request.method == 'POST':
         try:
-            payload = json.loads(post_data_str)
-            birthday = payload.get("birthday") # Expected format: YYYYMMDDHHMM
+            payload = request.get_json()
+            if not payload:
+                return jsonify({"error": "Invalid JSON payload or empty request body"}), 400
+
+            birthday = payload.get("birthday")  # Expected format: YYYYMMDDHHMM
             gender = payload.get("gender")
             user_message = payload.get("question")
 
+            # --- Input Validation ---
             if not all([birthday, gender, user_message]):
-                self.send_response(400)
-                self.send_header('Content-type', 'application/json')
-                self.end_headers()
-                self.wfile.write(json.dumps({"error": "Missing required fields: birthday, gender, question"}).encode('utf-8'))
-                return
+                missing_fields = [field for field, value in {"birthday": birthday, "gender": gender, "question": user_message}.items() if not value]
+                return jsonify({"error": f"Missing required fields: {', '.join(missing_fields)}"}), 400
 
-            # Validate birthday format (YYYYMMDDHHMM)
-            if not (len(birthday) == 12 and birthday.isdigit()):
-                 self.send_response(400)
-                 self.send_header('Content-type', 'application/json')
-                 self.end_headers()
-                 self.wfile.write(json.dumps({"error": "Invalid birthday format. Expected YYYYMMDDHHMM."}).encode('utf-8'))
-                 return
+            if not (isinstance(birthday, str) and len(birthday) == 12 and birthday.isdigit()):
+                return jsonify({"error": "Invalid birthday format. Expected a 12-digit string YYYYMMDDHHMM."}), 400
+            
+            if gender not in ["male", "female"]:
+                return jsonify({"error": "Invalid gender. Expected 'male' or 'female'."}), 400
+            
+            if not isinstance(user_message, str) or not user_message.strip():
+                return jsonify({"error": "Question cannot be empty."}), 400
 
-            # Get today's date in YYYYMMDD format
+            # --- Prepare data for OpenAI API ---
             today_date = datetime.datetime.now().strftime("%Y%m%d")
 
             client = OpenAI(
@@ -46,65 +47,50 @@ class handler(BaseHTTPRequestHandler):
             )
 
             user_data = {
-                "appVersion": 199,
-                "userId": "skk-test", # Replace with a more robust user ID if needed
+                "appVersion": 199, # As per your initial example
+                "userId": "skk-flask-nextjs-demo", # Or any other identifier
                 "birthday": birthday,
                 "gender": gender,
                 "today": today_date
             }
             user_str = json.dumps(user_data)
 
-            self.send_response(200)
-            self.send_header('Content-type', 'text/plain; charset=utf-8') # For streaming
-            self.send_header('X-Content-Type-Options', 'nosniff') # Important for some browsers
-            self.end_headers()
-
-            try:
-                stream = client.chat.completions.create(
-                    model="stargio-saju-chat",
-                    user=user_str,
-                    messages=[
-                        {"role": "user", "content": user_message}
-                    ],
-                    stream=True,
-                    max_tokens=800,
-                    n=1,
-                    temperature=0.7,
-                    top_p=1.0,
-                    stop=None
-                )
-
-                for chunk in stream:
-                    if chunk.choices and chunk.choices[0].delta and chunk.choices[0].delta.content:
-                        content = chunk.choices[0].delta.content
-                        self.wfile.write(content.encode('utf-8'))
-                        # Vercel automatically flushes for serverless functions,
-                        # but if running locally or in different envs, you might need self.wfile.flush()
-                
-            except Exception as e:
-                # This error will be caught by the client-side if stream already started
-                # If it happens before stream starts, a 500 might be better
-                # For simplicity, just writing error to stream if it happens mid-stream
-                print(f"API call error: {e}") # Log to Vercel logs
-                self.wfile.write(f"\nAn error occurred during API call: {e}".encode('utf-8'))
+            # --- Streaming Logic ---
+            def generate_stream():
+                try:
+                    api_response_stream = client.chat.completions.create(
+                        model="stargio-saju-chat", # As per your initial example
+                        user=user_str,
+                        messages=[{"role": "user", "content": user_message}],
+                        stream=True,
+                        max_tokens=800, # As per your initial example
+                        # n=1, temperature=0.7, top_p=1.0 (can be set if not default)
+                    )
+                    for chunk in api_response_stream:
+                        if chunk.choices and chunk.choices[0].delta and chunk.choices[0].delta.content:
+                            content = chunk.choices[0].delta.content
+                            yield content.encode('utf-8') # Yield bytes for the stream
+                except Exception as e:
+                    # This error will be part of the stream if it occurs after streaming started
+                    app.logger.error(f"Error during OpenAI API stream: {e}") # Log server-side
+                    yield f"\nSTREAM_ERROR: An error occurred during Saju data generation: {str(e)}".encode('utf-8')
+            
+            # Return a streaming response
+            return Response(generate_stream(), mimetype='text/plain; charset=utf-8')
 
         except json.JSONDecodeError:
-            self.send_response(400)
-            self.send_header('Content-type', 'application/json')
-            self.end_headers()
-            self.wfile.write(json.dumps({"error": "Invalid JSON payload"}).encode('utf-8'))
-            return
+            app.logger.error("Invalid JSON received")
+            return jsonify({"error": "Invalid JSON format in request body"}), 400
         except Exception as e:
-            print(f"Server error: {e}") # Log to Vercel logs
-            self.send_response(500)
-            self.send_header('Content-type', 'application/json')
-            self.end_headers()
-            self.wfile.write(json.dumps({"error": f"An internal server error occurred: {e}"}).encode('utf-8'))
-            return
+            # Catch-all for other unexpected errors before streaming starts
+            app.logger.error(f"Unexpected server error: {e}") # Log server-side
+            return jsonify({"error": f"An unexpected server error occurred: {str(e)}"}), 500
+    else:
+        # This part should ideally not be reached if methods=['POST'] is respected by routing
+        return jsonify({"error": "Method not allowed. Please use POST."}), 405
 
-    # Optional: Handle GET requests or other methods if needed
-    def do_GET(self):
-        self.send_response(405)
-        self.send_header('Content-type', 'application/json')
-        self.end_headers()
-        self.wfile.write(json.dumps({"error": "Method Not Allowed"}).encode('utf-8'))
+# This allows running the app locally for testing if needed,
+# though Vercel will handle running it as a serverless function.
+if __name__ == '__main__':
+    # Port 5001 to avoid conflict if Next.js dev server is on 3000 and Vercel dev might use 5000
+    app.run(debug=True, port=5001)
