@@ -1,21 +1,89 @@
-'use client'; // Add this if you're using Next.js App Router and need client-side interactivity
+'use client';
 
 import { useState, FormEvent } from 'react';
-// You can keep the Image and Link imports if you plan to use them elsewhere,
-// but they are not used in this specific form example.
-// import Image from 'next/image';
-// import Link from 'next/link';
+// Import SyntaxHighlighter and a style
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { atomDark } from 'react-syntax-highlighter/dist/esm/styles/prism'; // Choose a style you like!
+
+// The Python sample code as a string
+const pythonApiSampleCode = `
+import json
+from openai import OpenAI
+
+def generate_text_example(stream=False):
+    """
+    A simple example to generate text using the OpenAI API.
+    """
+    try:
+        client = OpenAI(
+            base_url="https://api.sajugpt.net/v1",
+            api_key="key" 
+        )
+        user_message = "오늘의 운세를 알려 주세요."
+        # user_message = "내년 운세를 알려 주세요."
+
+        print(f"Sending prompt to OpenAI: \"{user_message}\"")
+
+        # all parameters are same as OpenAI API, make sure user_data is correctly formatted
+        user_data = {
+            "appVersion": 199, # do not change
+            "userId": "KEY_PROVIDED_BY_STRAGIO_SOFT",  # use your own userId provided by Stragio Soft.
+            "birthday": "196508220840", "gender": "male", "today": "20250518" # birthday format: YYYYMMDDHHMM, today format: YYYYMMDD, gender is male/female
+        }
+        user_str = json.dumps(user_data)
+        response = client.chat.completions.create(
+            model="stargio-saju-chat", # do not change
+            user=user_str,
+            messages=[
+                {"role": "user", "content": user_message} # currently only one message is supported
+            ],
+            stream=stream,    # Set to True if you want to receive streaming responses
+            max_tokens=800,  # Limit the length of the generated text
+            n=1,    # do not change
+            temperature=0.7, # do not change
+            top_p=1.0, # do not change
+            stop=None        
+        )
+
+        if stream:
+            print("\nGenerated Text (Streaming):")
+            full_response_content = ""
+            for chunk in response:
+                if chunk.choices:
+                    content = chunk.choices[0].delta.content
+                    if content:
+                        print(content, end="", flush=True)
+                        full_response_content += content
+            print()
+        else:    
+            if response.choices:
+                generated_text = response.choices[0].message.content.strip()
+                print("\nGenerated Text:")
+                print(generated_text)
+            else:
+                print("\nNo text was generated.")
+
+    except Exception as e:
+        print(f"An error occurred: {e}")
+
+import time
+if __name__ == "__main__":
+    generate_text_example(stream=True)
+`;
+
 
 export default function Home() {
-  const [birthdate, setBirthdate] = useState(''); // YYYYMMDD
-  const [birthtime, setBirthtime] = useState(''); // HHMM
+  const [birthdate, setBirthdate] = useState('');
+  const [birthtime, setBirthtime] = useState('');
   const [gender, setGender] = useState('male');
   const [question, setQuestion] = useState('');
   const [streamingResult, setStreamingResult] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [showSampleCode, setShowSampleCode] = useState(false); // State for code block visibility
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    // ... (your existing handleSubmit function remains unchanged)
     event.preventDefault();
     setIsLoading(true);
     setStreamingResult('');
@@ -37,11 +105,9 @@ export default function Home() {
       return;
     }
 
-    const birthday = birthdate + birthtime; // Combine for API
+    const birthday = birthdate + birthtime;
 
     try {
-      // We'll assume your Python API endpoint is at /api/saju
-      // This should be a Python file like `api/saju.py` in your Vercel project
       const response = await fetch('/api/saju', {
         method: 'POST',
         headers: {
@@ -84,14 +150,19 @@ export default function Home() {
     }
   };
 
+  const toggleSampleCode = () => {
+    setShowSampleCode(!showSampleCode);
+  };
+
   return (
     <main className="flex min-h-screen flex-col items-center justify-start p-6 md:p-12 lg:p-24 bg-gradient-to-b from-zinc-200 via-slate-100 to-stone-200 dark:from-zinc-800/30 dark:via-neutral-900 dark:to-black">
       <div className="z-10 w-full max-w-2xl items-center justify-between font-mono text-sm">
         <h1 className="text-3xl lg:text-4xl font-bold text-center pb-8 pt-4 text-gray-800 dark:text-gray-200">
-          Saju GPT Demo
+          Saju GPT API Demo
         </h1>
 
         <form onSubmit={handleSubmit} className="space-y-6 bg-white dark:bg-zinc-800 p-6 md:p-8 rounded-xl shadow-2xl">
+          {/* ... (your existing form inputs for birthdate, birthtime, gender, question) ... */}
           <div>
             <label htmlFor="birthdate" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Birthday (YYYYMMDD)
@@ -154,7 +225,6 @@ export default function Home() {
               className="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-zinc-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm dark:bg-zinc-700 dark:text-white"
             />
           </div>
-
           <button
             type="submit"
             disabled={isLoading}
@@ -170,6 +240,34 @@ export default function Home() {
           </div>
         )}
 
+        {/* Button to show/hide the sample API code */}
+        <div className="mt-8 text-center">
+          <button
+            onClick={toggleSampleCode}
+            className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-slate-600 hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-500"
+          >
+            {showSampleCode ? 'Hide' : 'Show'} Sample API Client Code (Python)
+          </button>
+        </div>
+
+        {/* Conditionally rendered code block */}
+        {showSampleCode && (
+          <div className="mt-6 w-full">
+            <SyntaxHighlighter
+              language="python"
+              style={atomDark} // Or any other style you imported
+              showLineNumbers={true}
+              customStyle={{
+                borderRadius: '0.5rem', // 8px
+                padding: '1rem', // 16px
+                fontSize: '0.875rem', // 14px
+              }}
+            >
+              {pythonApiSampleCode.trim()}
+            </SyntaxHighlighter>
+          </div>
+        )}
+
         {streamingResult && (
           <div className="mt-8">
             <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-3">API Response:</h2>
@@ -179,10 +277,6 @@ export default function Home() {
           </div>
         )}
       </div>
-      {/* You can add back the Vercel/Next.js promo content below if you wish */}
-      {/* <div className="fixed bottom-0 left-0 flex h-48 w-full items-end justify-center bg-gradient-to-t from-white via-white dark:from-black dark:via-black lg:static lg:h-auto lg:w-auto lg:bg-none"> ... </div> */}
-      {/* <div className="relative flex place-items-center ..."> ... </div> */}
-      {/* <div className="mb-32 grid text-center ..."> ... </div> */}
     </main>
   );
 }
