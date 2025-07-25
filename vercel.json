@@ -16,7 +16,4 @@
       "dest": "/api/$1"
     }
   ],
-  "env": {
-    "SAJU_API_KEY": "@saju_api_key"
-  }
 }
