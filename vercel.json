@@ -15,5 +15,8 @@
       "src": "/api/(.*)",
       "dest": "/api/$1"
     }
-  ]
+  ],
+  "env": {
+    "SAJU_API_KEY": "$SAJU_API_KEY"
+  }
 }
