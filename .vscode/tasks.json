@@ -1,0 +1,64 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Install Dependencies",
+			"type": "shell",
+			"command": "pnpm install",
+			"group": "build",
+			"problemMatcher": []
+		},
+		{
+			"label": "Start Next.js Dev Server",
+			"type": "shell",
+			"command": "pnpm run next-dev",
+			"group": "build",
+			"isBackground": true,
+			"problemMatcher": [],
+			"presentation": {
+				"echo": true,
+				"reveal": "always",
+				"focus": false,
+				"panel": "shared",
+				"showReuseMessage": true,
+				"clear": false
+			}
+		},
+		{
+			"label": "Start Flask API Server",
+			"type": "shell",
+			"command": "pip3 install python-dotenv && python3 -m flask --app api/index run -p 5328",
+			"group": "build",
+			"isBackground": true,
+			"options": {
+				"env": {
+					"FLASK_DEBUG": "1",
+					"FLASK_ENV": "development"
+				}
+			},
+			"problemMatcher": [],
+			"presentation": {
+				"echo": true,
+				"reveal": "always",
+				"focus": false,
+				"panel": "shared",
+				"showReuseMessage": true,
+				"clear": false
+			}
+		},
+		{
+			"label": "Start Full Stack (Next.js + Flask)",
+			"dependsOrder": "parallel",
+			"dependsOn": ["Start Next.js Dev Server", "Start Flask API Server"],
+			"group": "build",
+			"problemMatcher": []
+		},
+		{
+			"label": "Install Python Dependencies",
+			"type": "shell",
+			"command": "pip3 install -r requirements.txt",
+			"group": "build",
+			"problemMatcher": []
+		}
+	]
+}

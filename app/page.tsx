@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, FormEvent } from 'react';
+import { useState, FormEvent, useEffect } from 'react';
 // Import SyntaxHighlighter and a style
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { atomDark } from 'react-syntax-highlighter/dist/esm/styles/prism'; // Choose a style you like!
@@ -77,10 +77,26 @@ export default function Home() {
   const [birthtime, setBirthtime] = useState('');
   const [gender, setGender] = useState('male');
   const [question, setQuestion] = useState('');
+  const [systemPrompt, setSystemPrompt] = useState('');
   const [streamingResult, setStreamingResult] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [showSampleCode, setShowSampleCode] = useState(false); // State for code block visibility
+  const [isV2Mode, setIsV2Mode] = useState(false); // State for v=2 mode
+  const [copyMessage, setCopyMessage] = useState(''); // State for copy confirmation message
+
+  // Check for v=2 URL parameter on component mount
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const vParam = urlParams.get('v');
+    const isV2 = vParam === '2';
+    setIsV2Mode(isV2);
+    
+    // Set default system prompt when in v2 mode
+    if (isV2 && !systemPrompt) {
+      setSystemPrompt('이 시스템은 Stargio Soft가 개발한 대규모 인공지능 언어모델인 사주GPT이다. 사주명리 철학자 선생님이 상담자의 운세를 봐주는 상황을 가정하세요. 전문적인 운세 해설과 인생의 지혜를 제공하세요. 상담자 호칭은 당신으로 합니다. 인사는 생략 하세요. 존대말을 사용하세요.\n위 사주 정보에 기반하여 아래 질문에 답하세요. 상담자의 용기를 북 돋워 주세요. 사주 정보에 적절한 답이 없을 경우 정보를 기반으로 명리 이론을 적용하여 답변을 찾으세요.');
+    }
+  }, [systemPrompt]);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     // ... (your existing handleSubmit function remains unchanged)
@@ -108,16 +124,23 @@ export default function Home() {
     const birthday = birthdate + birthtime;
 
     try {
+      const requestBody: any = {
+        birthday: birthday,
+        gender: gender,
+        question: question,
+      };
+
+      // Add system prompt to request body if in v2 mode
+      if (isV2Mode && systemPrompt.trim()) {
+        requestBody.systemPrompt = systemPrompt;
+      }
+
       const response = await fetch('/api/saju', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          birthday: birthday,
-          gender: gender,
-          question: question,
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       if (!response.ok) {
@@ -154,11 +177,29 @@ export default function Home() {
     setShowSampleCode(!showSampleCode);
   };
 
+  const copyToClipboard = async () => {
+    try {
+      await navigator.clipboard.writeText(streamingResult);
+      setCopyMessage('Copied!');
+      // Clear the message after 2 seconds
+      setTimeout(() => {
+        setCopyMessage('');
+      }, 2000);
+    } catch (err) {
+      console.error('Failed to copy text: ', err);
+      setCopyMessage('Failed to copy');
+      // Clear the error message after 2 seconds
+      setTimeout(() => {
+        setCopyMessage('');
+      }, 2000);
+    }
+  };
+
   return (
     <main className="flex min-h-screen flex-col items-center justify-start p-6 md:p-12 lg:p-24 bg-gradient-to-b from-zinc-200 via-slate-100 to-stone-200 dark:from-zinc-800/30 dark:via-neutral-900 dark:to-black">
       <div className="z-10 w-full max-w-2xl items-center justify-between font-mono text-sm">
         <h1 className="text-3xl lg:text-4xl font-bold text-center pb-8 pt-4 text-gray-800 dark:text-gray-200">
-          Saju GPT API Demo
+          Saju GPT API Demo{isV2Mode ? ' (v2)' : ''}
         </h1>
 
         <form onSubmit={handleSubmit} className="space-y-6 bg-white dark:bg-zinc-800 p-6 md:p-8 rounded-xl shadow-2xl">
@@ -211,17 +252,34 @@ export default function Home() {
             </select>
           </div>
 
+          {/* System Prompt field - only show in v=2 mode */}
+          {isV2Mode && (
+            <div>
+              <label htmlFor="systemPrompt" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                System Prompt (v2 mode)
+              </label>
+              <textarea
+                id="systemPrompt"
+                value={systemPrompt}
+                onChange={(e) => setSystemPrompt(e.target.value)}
+                placeholder="Enter system prompt..."
+                rows={6}
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-zinc-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm dark:bg-zinc-700 dark:text-white"
+              />
+            </div>
+          )}
+
           <div>
             <label htmlFor="question" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Saju Question
             </label>
-            <input
-              type="text"
+            <textarea
               id="question"
               value={question}
               onChange={(e) => setQuestion(e.target.value)}
               placeholder="e.g., 오늘의 운세를 알려 주세요."
               required
+              rows={4}
               className="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-zinc-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm dark:bg-zinc-700 dark:text-white"
             />
           </div>
@@ -270,7 +328,22 @@ export default function Home() {
 
         {streamingResult && (
           <div className="mt-8">
-            <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-3">API Response:</h2>
+            <div className="flex justify-between items-center mb-3">
+              <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-200">API Response:</h2>
+              <div className="flex items-center gap-2">
+                {copyMessage && (
+                  <span className="text-xs text-green-600 dark:text-green-400">
+                    {copyMessage}
+                  </span>
+                )}
+                <button
+                  onClick={copyToClipboard}
+                  className="px-3 py-1 border border-transparent rounded-md shadow-sm text-xs font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                >
+                  Copy to Clipboard
+                </button>
+              </div>
+            </div>
             <pre className="bg-gray-100 dark:bg-zinc-800 p-4 rounded-md shadow text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap break-words">
               {streamingResult}
             </pre>

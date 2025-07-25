@@ -1,17 +1,55 @@
-<p align="center">
-  <a href="https://nextjs-flask-starter.vercel.app/">
-    <img src="https://assets.vercel.com/image/upload/v1588805858/repositories/vercel/logo.png" height="96">
-    <h3 align="center">Next.js Flask Starter</h3>
-  </a>
-</p>
+# Saju GPT API Demo - Next.js + Flask
 
-<p align="center">Simple Next.js boilerplate that uses <a href="https://flask.palletsprojects.com/">Flask</a> as the API backend.</p>
+This is a hybrid Next.js + Flask application that demonstrates integration with the Saju GPT API for Korean fortune telling. The app uses Next.js as the frontend and Flask as the API backend.
 
-<br/>
+## Features
 
-## Introduction
+- 🔮 Saju (Korean fortune telling) readings using GPT API
+- ⚡ Next.js 13+ with App Router and TypeScript
+- 🐍 Flask API backend with streaming responses
+- 🎨 Tailwind CSS for styling
+- 🚀 Vercel deployment ready
+- 🐛 VS Code debugging configuration included
+- 📱 Responsive design with dark/light mode support
 
-This is a hybrid Next.js + Python app that uses Next.js as the frontend and Flask as the API backend. One great use case of this is to write Next.js apps that use Python AI libraries on the backend.
+## Quick Start
+
+### Local Development
+
+1. **Install dependencies:**
+   ```bash
+   npm install
+   pip3 install -r requirements.txt
+   ```
+
+2. **Set up environment:**
+   ```bash
+   cp .env.example .env.local
+   # Edit .env.local and add your SAJU_API_KEY
+   ```
+
+3. **Start development servers:**
+   ```bash
+   # Option 1: Run both servers concurrently
+   npm run dev
+   
+   # Option 2: Run separately
+   npm run next-dev    # Next.js on :3000
+   npm run flask-dev   # Flask on :5328
+   ```
+
+4. **Open your browser:**
+   Visit [http://localhost:3000](http://localhost:3000)
+
+### VS Code Debugging
+
+This project includes comprehensive VS Code debugging configurations:
+
+- **Next.js debugging**: Client-side and server-side React debugging
+- **Flask debugging**: Python API debugging with breakpoints
+- **Full-stack debugging**: Debug both frontend and backend simultaneously
+
+See [DEVELOPMENT.md](./DEVELOPMENT.md) for detailed debugging instructions.
 
 ## How It Works
 

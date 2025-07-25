@@ -5,8 +5,7 @@ import os
 import datetime
 from flask import Flask, request, Response, jsonify
 
-# Initialize the Flask application
-# Vercel will look for an 'app' instance by default in the file.
+# Initialize the Flask application for Vercel compatibility
 app = Flask(__name__)
 
 # Retrieve the API key from environment variables (set this in your Vercel project settings)
@@ -23,6 +22,7 @@ def get_saju_reading():
             birthday = payload.get("birthday")  # Expected format: YYYYMMDDHHMM
             gender = payload.get("gender")
             user_message = payload.get("question")
+            system_prompt = payload.get("systemPrompt")  # Optional system prompt for v2 mode
 
             # --- Input Validation ---
             if not all([birthday, gender, user_message]):
@@ -58,10 +58,16 @@ def get_saju_reading():
             # --- Streaming Logic ---
             def generate_stream():
                 try:
+                    # Prepare messages array based on whether system prompt is provided
+                    messages = []
+                    if system_prompt and system_prompt.strip():
+                        messages.append({"role": "system", "content": system_prompt})
+                    messages.append({"role": "user", "content": user_message})
+
                     api_response_stream = client.chat.completions.create(
                         model="stargio-saju-chat", # As per your initial example
                         user=user_str,
-                        messages=[{"role": "user", "content": user_message}],
+                        messages=messages,
                         stream=True,
                         max_tokens=800, # As per your initial example
                         # n=1, temperature=0.7, top_p=1.0 (can be set if not default)
@@ -92,5 +98,5 @@ def get_saju_reading():
 # This allows running the app locally for testing if needed,
 # though Vercel will handle running it as a serverless function.
 if __name__ == '__main__':
-    # Port 5001 to avoid conflict if Next.js dev server is on 3000 and Vercel dev might use 5000
-    app.run(debug=True, port=5001)
+    # Port 5328 to match the existing npm script
+    app.run(debug=True, port=5328)
