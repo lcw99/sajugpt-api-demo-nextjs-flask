@@ -306,7 +306,7 @@ export default function Home() {
             <>
               <div>
                 <label htmlFor="birthdate2" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Second Person's Birthday (YYYYMMDD)
+                  Second Person&apos;s Birthday (YYYYMMDD)
                 </label>
                 <input
                   type="text"
@@ -322,7 +322,7 @@ export default function Home() {
 
               <div>
                 <label htmlFor="birthtime2" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Second Person's Birth Time (HHMM)
+                  Second Person&apos;s Birth Time (HHMM)
                 </label>
                 <input
                   type="text"
@@ -338,7 +338,7 @@ export default function Home() {
 
               <div>
                 <label htmlFor="gender2" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Second Person's Gender
+                  Second Person&apos;s Gender
                 </label>
                 <select
                   id="gender2"
