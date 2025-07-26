@@ -84,6 +84,10 @@ export default function Home() {
   const [showSampleCode, setShowSampleCode] = useState(false); // State for code block visibility
   const [isV2Mode, setIsV2Mode] = useState(false); // State for v=2 mode
   const [copyMessage, setCopyMessage] = useState(''); // State for copy confirmation message
+  const [isCompatibilityMode, setIsCompatibilityMode] = useState(false); // State for 궁합 mode
+  const [birthdate2, setBirthdate2] = useState('');
+  const [birthtime2, setBirthtime2] = useState('');
+  const [gender2, setGender2] = useState('male');
 
   // Check for v=2 URL parameter on component mount
   useEffect(() => {
@@ -91,12 +95,20 @@ export default function Home() {
     const vParam = urlParams.get('v');
     const isV2 = vParam === '2';
     setIsV2Mode(isV2);
-    
-    // Set default system prompt when in v2 mode
-    if (isV2 && !systemPrompt) {
-      setSystemPrompt('이 시스템은 Stargio Soft가 개발한 대규모 인공지능 언어모델인 사주GPT이다. 사주명리 철학자 선생님이 상담자의 운세를 봐주는 상황을 가정하세요. 전문적인 운세 해설과 인생의 지혜를 제공하세요. 상담자 호칭은 당신으로 합니다. 인사는 생략 하세요. 존대말을 사용하세요.\n위 사주 정보에 기반하여 아래 질문에 답하세요. 상담자의 용기를 북 돋워 주세요. 사주 정보에 적절한 답이 없을 경우 정보를 기반으로 명리 이론을 적용하여 답변을 찾으세요.');
+  }, []);
+
+  // Dynamically set system prompt based on v2 mode and compatibility mode
+  useEffect(() => {
+    if (isV2Mode) {
+      if (isCompatibilityMode) {
+        // Set compatibility mode system prompt
+        setSystemPrompt('사주GPT는 Stargio Soft가 개발한 대규모 인공지능 언어모델 이다. 사주GPT는 다음 상황을 시뮬레이션 합니다. 사주 명리 상담센터에서 전문가가 연애상담을 해주는 상황을 가정하세요. 위 사주 정보에 기반하여 아래 질문에 답하세요. 위 사주 정보상의 \'본인\'이 상담 하러 온사람이고 \'상대방\'은 연애 상대방을 말합니다. 상담자 본인은 당신이라고 부르세요. 인사는 생략 하세요. \n존대말을 사용하세요. 위 사주 정보에 적절한 답이 없을 경우 정보를 기반으로 명리 이론을 적용하여 답변을 찾으세요.');
+      } else {
+        // Set regular v2 mode system prompt
+        setSystemPrompt('이 시스템은 Stargio Soft가 개발한 대규모 인공지능 언어모델인 사주GPT이다. 사주명리 철학자 선생님이 상담자의 운세를 봐주는 상황을 가정하세요. 전문적인 운세 해설과 인생의 지혜를 제공하세요. 상담자 호칭은 당신으로 합니다. 인사는 생략 하세요. 존대말을 사용하세요.\n위 사주 정보에 기반하여 아래 질문에 답하세요. 상담자의 용기를 북 돋워 주세요. 사주 정보에 적절한 답이 없을 경우 정보를 기반으로 명리 이론을 적용하여 답변을 찾으세요.');
+      }
     }
-  }, [systemPrompt]);
+  }, [isV2Mode, isCompatibilityMode]);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     // ... (your existing handleSubmit function remains unchanged)
@@ -115,6 +127,21 @@ export default function Home() {
       setIsLoading(false);
       return;
     }
+    
+    // Validate second person's info if compatibility mode is enabled
+    if (isCompatibilityMode) {
+      if (!/^\d{8}$/.test(birthdate2)) {
+        setError('Error: Second person\'s birthday must be in YYYYMMDD format.');
+        setIsLoading(false);
+        return;
+      }
+      if (!/^\d{4}$/.test(birthtime2)) {
+        setError('Error: Second person\'s birth time must be in HHMM format.');
+        setIsLoading(false);
+        return;
+      }
+    }
+    
     if (!question.trim()) {
       setError('Error: Saju question cannot be empty.');
       setIsLoading(false);
@@ -129,6 +156,13 @@ export default function Home() {
         gender: gender,
         question: question,
       };
+
+      // Add second person's info if compatibility mode is enabled
+      if (isCompatibilityMode) {
+        const birthday2Full = birthdate2 + birthtime2;
+        requestBody.birthday2 = birthday2Full;
+        requestBody.gender2 = gender2;
+      }
 
       // Add system prompt to request body if in v2 mode
       if (isV2Mode && systemPrompt.trim()) {
@@ -251,6 +285,74 @@ export default function Home() {
               <option value="female">Female</option>
             </select>
           </div>
+
+          {/* Compatibility checkbox */}
+          <div>
+            <label className="flex items-center">
+              <input
+                type="checkbox"
+                checked={isCompatibilityMode}
+                onChange={(e) => setIsCompatibilityMode(e.target.checked)}
+                className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 dark:border-zinc-600 rounded dark:bg-zinc-700"
+              />
+              <span className="ml-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                궁합 (Compatibility Mode)
+              </span>
+            </label>
+          </div>
+
+          {/* Second person's info - only show when compatibility mode is enabled */}
+          {isCompatibilityMode && (
+            <>
+              <div>
+                <label htmlFor="birthdate2" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Second Person's Birthday (YYYYMMDD)
+                </label>
+                <input
+                  type="text"
+                  id="birthdate2"
+                  value={birthdate2}
+                  onChange={(e) => setBirthdate2(e.target.value)}
+                  pattern="\d{8}"
+                  placeholder="e.g., 19900101"
+                  required={isCompatibilityMode}
+                  className="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-zinc-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm dark:bg-zinc-700 dark:text-white"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="birthtime2" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Second Person's Birth Time (HHMM)
+                </label>
+                <input
+                  type="text"
+                  id="birthtime2"
+                  value={birthtime2}
+                  onChange={(e) => setBirthtime2(e.target.value)}
+                  pattern="\d{4}"
+                  placeholder="e.g., 1430"
+                  required={isCompatibilityMode}
+                  className="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-zinc-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm dark:bg-zinc-700 dark:text-white"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="gender2" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Second Person's Gender
+                </label>
+                <select
+                  id="gender2"
+                  value={gender2}
+                  onChange={(e) => setGender2(e.target.value)}
+                  required={isCompatibilityMode}
+                  className="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-zinc-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm dark:bg-zinc-700 dark:text-white"
+                >
+                  <option value="male">Male</option>
+                  <option value="female">Female</option>
+                </select>
+              </div>
+            </>
+          )}
 
           {/* System Prompt field - only show in v=2 mode */}
           {isV2Mode && (
